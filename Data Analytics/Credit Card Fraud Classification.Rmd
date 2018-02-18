@@ -1,0 +1,129 @@
+---
+title: "R Notebook: Credit Card Fraud Classification"
+output: html_notebook
+---
+
+```{r}
+#install.packages('tidyverse')
+library(tidyverse)
+
+raw_data <- read_csv('creditcard.csv')
+View(raw_data)
+```
+
+
+When in the exploratory data analysis stage of any project it is recommended that you visualise the data to look for any obvious patterns or outliers in the data. Once the dataset is loaded into the R environment, the author will plot Time on the x axis, the transaction amount on the y axis and then colur each observation based on its class.
+
+Having loaded in the dataframe, the first discrepency the author noticed was the Class column was of type integer. As this column represents the validity of the transaction ,fraudulent or not, this column was then changed to a column of type factor.
+
+When originally an integer column, the colours where displayed as ranges instead of distinct colours in the plot. This made locating the fraudulent transactions quite tricky. Having resolved the data type of the Class column, it was still difficult to see the fraudulent transactions as there were far more valid transactions than fraudulent transactions.
+
+Therefore adding the alpha aesthetic with the colour aesthetic provided a better view of the fraudulent transactions.
+
+```{r}
+ggplot(data = raw_data) + geom_point( mapping = aes(x = Time, y = Amount, color = Class)) # Class column as int
+
+raw_data$Class = factor(raw_data$Class)
+
+ggplot(data = raw_data) + geom_point( mapping = aes(x = Time, y = Amount, color = Class) , na.rm = TRUE) # Class column as factor
+
+ggplot(data = raw_data) + geom_point( mapping = aes(x = Time, y = Amount, color = Class, alpha = Class), na.rm = TRUE) # Dynamic alpha level
+
+(num_valid <- raw_data %>%
+  group_by(Class) %>%
+  count()) # count observations for each class of transactions
+  
+```
+
+As you can see when the dataframe has been grouped by the class of the transaction and a basic count has been made for the number of observations of each class, it is evident the dataset is highly unbalanced. There are only 492 fraudulent transactions compared to 284315 valid transactions. 
+
+Also note the first plot alerts us to the fact that there is one row that contains an NA value which has been removed from the plot by default. To avoid this warning you need to explicitly remove the *na* values in the geom function.
+
+The next step was to get some basic summary statistics on the fraudulent transactions. To do this the author filtered the dataset so the summary statistics would be based on the fraudulent transactions only.
+
+```{r}
+fraud <- filter(raw_data, Class == 1)
+fraud
+
+summary(fraud$Amount)
+
+```
+
+Having looked at the summary statistics its interesting to note that the smallest transaction is $0.00 which has been classified as fraud. This could be an anomaly within the data. Again using the same principle as before visualising the fraudulent data may provide some correlations with other data from the dataset.
+
+```{r}
+fraud$Amount
+
+ggplot(data = fraud) + geom_point( mapping = aes(x = Time, y = Amount))
+```
+
+Having looked at the transaction amounts, many of the fraudulent transactions are no significantly large. Unfortunately the time is given in an unusual manner in this dataset. The times are recorded in seconds from the first transaction. This is not very informative in terms of the values on the x axis. To solve this a function was created that took the fraud dataframe and generates a 3 graphs where the x axis goes from minutes to hours to days. 
+
+```{r}
+generate_times <- function(fraud_data)
+{
+  fraud_data <- fraud_data %>%
+    mutate(mins = Time / 60)%>%
+    mutate(hours = Time / 60 / 60) %>%
+    mutate(days = Time / 60 / 60 / 24)
+  return(fraud_data)
+}
+
+generate_graphs <- function(frauds, x, y)
+{
+  return (ggplot(data = frauds) + geom_point( mapping = aes(x ,  y)) )
+}
+
+fraud_times <- generate_times(fraud)
+
+(graph_minutes <- generate_graphs(fraud_times, fraud_times$mins, fraud_times$Amount) + xlab('Minutes') + ylab('Amount'))
+(graph_hours <- generate_graphs(fraud_times, fraud_times$hours, fraud_times$Amount) + xlab('Hours') + ylab('Amount'))
+(graph_days <- generate_graphs(fraud_times, fraud_times$days, fraud_times$Amount) + xlab('Days') + ylab('Amount'))
+
+```
+
+Again, even when the time data is change to minutes, hours and days, the majority of the values have a transaction amount that is still quite low. Looking at the x axis in terms of hours, we will now limit the y axis to an arbitrary value to see the dispersion of the lower transactions.
+
+```{r}
+(ggplot(data = fraud_times) + geom_point( mapping = aes(mins ,  Amount )) + ylim(0,10))
+(ggplot(data = fraud_times) + geom_point( mapping = aes(mins ,  Amount )) + ylim(10, max(fraud_times$Amount) ))
+(ggplot(data = fraud_times) + geom_point( mapping = aes(mins ,  Amount )) + coord_cartesian(ylim = c(10, 250))
+ )
+```
+
+Having limited the maximum transaction amount to $10 in the first plot, it is evident that a large proportion of the transactions are less than $5. In the second plot the author look at all the transactions greater than $10 which shows us a large proportion of the data points falling between $10 and $250. In the third plot the author "zooms" in on the values that fall between $10 and $250. Unfortunately there appears to be no direct correlation between the time and the amount of the transaction. This is clarified when we look at the correlation coefficient between time in minutes and the transaction amount.
+
+```{r}
+cor(fraud_times$mins, fraud_times$Amount)
+```
+
+As we can see the correlation between the time in minutes and transactions amount is very low.
+
+As all the variables in this dataset are in a numeric format we need to normalize them before working with any machine learning algorithms.
+
+```{r}
+#x - min(x) / max(x) - min(x)
+
+normalise_data <- function(temporary_data)
+{
+  for (i in temporary_data[1:30])
+    {
+        for (value in i)
+        {
+          value <- min(temporary_data[i]) / max(temporary_data[i]) - min(temporary_data[i])
+         
+        }
+    }
+}
+
+
+```
+
+
+
+```
+
+```{r}
+
+```
+
