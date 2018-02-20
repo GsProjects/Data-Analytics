@@ -99,27 +99,89 @@ cor(fraud_times$mins, fraud_times$Amount)
 
 As we can see the correlation between the time in minutes and transactions amount is very low.
 
-As all the variables in this dataset are in a numeric format we need to normalize them before working with any machine learning algorithms.
+As all the variables in this dataset are in a numeric format we need to normalize them before working with any machine learning algorithms. Also as the dataset is highly unbalanced and contains approximately 280,000 rows of data, it is suggested that only a sample of the dataset be used to keep computing time to a minimum.
+
+Therefore it is suggested that the experiment will be carried out on a sample of the dataset containing all the fraudulent transactions and 10% of the valid transactions. Note, to make the models as accurate as possible all fraudulent transactions will be included in the sample.
+
+```{r}
+non_fraud <- raw_data %>%
+  filter(Class != 1)
+
+set.seed(1)
+non_fraud_sample <- sample_frac(non_fraud, .1, replace = FALSE )
+non_fraud_sample
+
+(count(non_fraud_sample))
+
+#Combine fraudulent transactions with valid transactions.
+ 
+(sample_data <- rbind(non_fraud_sample,fraud))
+(count(sample_data))
+```
+
+Having created our sample the data needs to be normalised before use in the machine learning algorithms.
 
 ```{r}
 #x - min(x) / max(x) - min(x)
 
+raw_data <- na.omit(raw_data)
+
+raw_data$Time = as.double(raw_data$Time)
+
 normalise_data <- function(temporary_data)
 {
-  for (i in temporary_data[1:30])
+  for (column in names(temporary_data[1:30]) )
     {
-        for (value in i)
+        max_value <- max(temporary_data[[column]])
+        min_value <- min(temporary_data[[column]])
+  
+  
+        for (value in 1: length(temporary_data[[column]]) )
         {
-          value <- min(temporary_data[i]) / max(temporary_data[i]) - min(temporary_data[i])
-         
+          
+          temporary_data[[column]][value] <- (temporary_data[[column]][value] - min_value) / (max_value - min_value)
+          
         }
     }
+  return(temporary_data)
 }
-
-
+start_time <- Sys.time()
+normalised <- normalise_data(sample_data)
+end_time <- Sys.time()
+(total_execution <- end_time - start_time)
+normalised
 ```
 
+Although only 10% of the dataset is being used it takes approximately 3 minutes to normalise all the data except for the class column as its a factor. The following webpage provide the author with the necessary documentation and examples for a stratified split of the data: *http://topepo.github.io/caret/data-splitting.html*
 
+```{r}
+#install.packages('caret')
+library(caret)
+
+set.seed(2)
+train_index <- createDataPartition(normalised$Class, times=1, p=.75, list = FALSE)
+XTrain <- normalised[ train_index,]
+
+XTest  <- normalised[-train_index,]
+```
+
+The K Nearest Neighbor classifier is one of the simplest classification algorithms to understand. In essence the algorithm works by storing the training set and then finding whats the closest training observation to the incoming test observation. The test observation is then categorised as the class of the training observation. This is the case if k = 1. If K =5 for example, the algorithm works by locating 5 closest training observations to the test observation and assigns it the class that occurs most in the 5 neighbours.
+
+```{r}
+#install.packages('class')
+#install.packages('gmodels')
+library(gmodels)
+library(class)
+
+?knn
+model <- knn(as.matrix(XTrain[1:30]),test = as.matrix(XTest[1:30]), cl = as.matrix(XTrain[31]) , k=5, prob = TRUE)
+
+CrossTable(as.matrix(XTest[31]), y = model )
+```
+
+The CrossTable function gives a description of the predictions by does not actually give an accuracy score for the model. This has to be calculated manually unfortunately. In this case the accuracy score of the model is approximately 99.61%. The accuracy is calculated by adding the total number of correct predictions for valid transactions with the total number of correct predictions for fraudulent transactions and then dividing that by the total number of observations.
+
+```{r}
 
 ```
 
