@@ -148,7 +148,7 @@ normalise_data <- function(temporary_data)
 start_time <- Sys.time()
 normalised <- normalise_data(sample_data)
 end_time <- Sys.time()
-(total_execution <- end_time - start_time)
+cat('The total time to normalise the data was: ', total_execution)
 normalised
 ```
 
@@ -173,8 +173,14 @@ The K Nearest Neighbor classifier is one of the simplest classification algorith
 library(gmodels)
 library(class)
 
-?knn
-model <- knn(as.matrix(XTrain[1:30]),test = as.matrix(XTest[1:30]), cl = as.matrix(XTrain[31]) , k=5, prob = TRUE)
+start_time <- Sys.time()
+model <- knn(as.matrix(XTrain[1:30]),test = as.matrix(XTest[1:30]),
+             cl = as.matrix(XTrain[31]) , k=5, prob = TRUE)
+end_time <- Sys.time()
+#model stores the predicted output for each data point as well as a proportion of votes for the winning class.
+
+total_execution <- end_time - start_time
+cat('The total time to train the model and predict test classes was: ', total_execution)
 
 CrossTable(as.matrix(XTest[31]), y = model )
 ```
@@ -182,10 +188,11 @@ CrossTable(as.matrix(XTest[31]), y = model )
 The CrossTable function gives a description of the predictions by does not actually give an accuracy score for the model. This has to be calculated manually unfortunately. In this case the accuracy score of the model is approximately 99.61%. The accuracy is calculated by adding the total number of correct predictions for valid transactions with the total number of correct predictions for fraudulent transactions and then dividing that by the total number of observations.
 
 ```{r}
-
+?knn
 ```
 
 ```{r}
-
+nrow(XTest)
+model
 ```
 
