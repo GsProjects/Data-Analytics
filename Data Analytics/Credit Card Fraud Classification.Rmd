@@ -148,6 +148,7 @@ normalise_data <- function(temporary_data)
 start_time <- Sys.time()
 normalised <- normalise_data(sample_data)
 end_time <- Sys.time()
+total_execution <- end_time - start_time
 cat('The total time to normalise the data was: ', total_execution)
 normalised
 ```
@@ -192,7 +193,6 @@ The CrossTable function gives a description of the predictions by does not actua
 ```
 
 ```{r}
-nrow(XTest)
-model
+
 ```
 
