@@ -130,7 +130,7 @@ raw_data$Time = as.double(raw_data$Time)
 
 normalise_data <- function(temporary_data)
 {
-  for (column in names(temporary_data[1:30]) )
+  for (column in names(temporary_data[2:30]) )
     {
         max_value <- max(temporary_data[[column]])
         min_value <- min(temporary_data[[column]])
@@ -156,7 +156,7 @@ normalised
 Although only 10% of the dataset is being used it takes approximately 3 minutes to normalise all the data except for the class column as its a factor. The following webpage provide the author with the necessary documentation and examples for a stratified split of the data: *http://topepo.github.io/caret/data-splitting.html*
 
 ```{r}
-#install.packages('caret')
+#install.packages('caret' ,dependencies = TRUE)
 library(caret)
 
 set.seed(2)
@@ -166,7 +166,7 @@ XTrain <- normalised[ train_index,]
 XTest  <- normalised[-train_index,]
 ```
 
-The K Nearest Neighbor classifier is one of the simplest classification algorithms to understand. In essence the algorithm works by storing the training set and then finding whats the closest training observation to the incoming test observation. The test observation is then categorised as the class of the training observation. This is the case if k = 1. If K =5 for example, the algorithm works by locating 5 closest training observations to the test observation and assigns it the class that occurs most in the 5 neighbours.
+The K Nearest Neighbor classifier is one of the simplest classification algorithms to understand. In essence the algorithm works by storing the training set and then finding whats the closest training observation to the incoming test observation. The test observation is then categorised as the class of the training observation. This is the case if k = 1. If K = 5 for example, the algorithm works by locating 5 closest training observations to the test observation and assigns it the class that occurs most in the 5 neighbours.
 
 ```{r}
 #install.packages('class')
@@ -175,21 +175,31 @@ library(gmodels)
 library(class)
 
 start_time <- Sys.time()
-model <- knn(as.matrix(XTrain[1:30]),test = as.matrix(XTest[1:30]),
+model <- knn(as.matrix(XTrain[2:30]),test = as.matrix(XTest[2:30]),
              cl = as.matrix(XTrain[31]) , k=5, prob = TRUE)
 end_time <- Sys.time()
 #model stores the predicted output for each data point as well as a proportion of votes for the winning class.
 
 total_execution <- end_time - start_time
-cat('The total time to train the model and predict test classes was: ', total_execution)
 
 CrossTable(as.matrix(XTest[31]), y = model )
+
+cat('The total time to train the model and predict test classes was: ', total_execution)
 ```
 
-The CrossTable function gives a description of the predictions by does not actually give an accuracy score for the model. This has to be calculated manually unfortunately. In this case the accuracy score of the model is approximately 99.61%. The accuracy is calculated by adding the total number of correct predictions for valid transactions with the total number of correct predictions for fraudulent transactions and then dividing that by the total number of observations.
+The CrossTable function gives a description of the predictions but does not actually give an accuracy score for the model. This has to be calculated manually unfortunately. In this case the accuracy score of the model is approximately 99.6%. The accuracy is calculated by adding the total number of correct predictions for valid transactions with the total number of correct predictions for fraudulent transactions and then dividing that by the total number of observations. Note this accurracy is achieved without including the Time column.
 
 ```{r}
-?knn
+?predict
+methods('predict')
+```
+
+```{r}
+?train
+?trainControl
+training_control <- trainControl(method ='repeatedcv', repeats = 10 )
+knn_model <- train(form = as.matrix(XTrain[31]) ~ ., data = as.matrix(XTrain[2:30]), trControl = training_control, method = 'knn')
+
 ```
 
 ```{r}
