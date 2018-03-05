@@ -12,7 +12,7 @@ View(raw_data)
 ```
 
 
-When in the exploratory data analysis stage of any project it is recommended that you visualise the data to look for any obvious patterns or outliers in the data. Once the dataset is loaded into the R environment, the author will plot Time on the x axis, the transaction amount on the y axis and then colur each observation based on its class.
+When in the exploratory data analysis stage of any project it is recommended that you visualise the data to look for any obvious patterns or outliers in the data. Once the dataset was loaded into the R environment, the author plotted Time on the x axis, the transaction amount on the y axis and then coloured each observation based on its class.
 
 Having loaded in the dataframe, the first discrepency the author noticed was the Class column was of type integer. As this column represents the validity of the transaction ,fraudulent or not, this column was then changed to a column of type factor.
 
@@ -27,7 +27,11 @@ raw_data$Class = factor(raw_data$Class)
 
 ggplot(data = raw_data) + geom_point( mapping = aes(x = Time, y = Amount, color = Class) , na.rm = TRUE) # Class column as factor
 
-ggplot(data = raw_data) + geom_point( mapping = aes(x = Time, y = Amount, color = Class, alpha = Class), na.rm = TRUE) # Dynamic alpha level
+graph <- ggplot(data = raw_data) + geom_point( mapping = aes(x = Time, y = Amount, color = Class, alpha = Class), na.rm = TRUE) # Dynamic alpha level
+
+png('Figure 1.png')
+print(graph)
+dev.off()
 
 (num_valid <- raw_data %>%
   group_by(Class) %>%
@@ -46,6 +50,16 @@ fraud <- filter(raw_data, Class == 1)
 fraud
 
 summary(fraud$Amount)
+summary(fraud$Time)
+
+fraud %>%
+  filter(Amount < .5) %>%
+  count()
+
+fraud %>%
+  filter(Amount < .1) %>%
+  count()
+
 
 ```
 
@@ -54,7 +68,11 @@ Having looked at the summary statistics its interesting to note that the smalles
 ```{r}
 fraud$Amount
 
-ggplot(data = fraud) + geom_point( mapping = aes(x = Time, y = Amount))
+(graph <- ggplot(data = fraud) + geom_point( mapping = aes(x = Time, y = Amount)))
+
+png('Figure 2.png')
+print(graph)
+dev.off()
 ```
 
 Having looked at the transaction amounts, many of the fraudulent transactions are no significantly large. Unfortunately the time is given in an unusual manner in this dataset. The times are recorded in seconds from the first transaction. This is not very informative in terms of the values on the x axis. To solve this a function was created that took the fraud dataframe and generates a 3 graphs where the x axis goes from minutes to hours to days. 
@@ -85,8 +103,15 @@ fraud_times <- generate_times(fraud)
 Again, even when the time data is change to minutes, hours and days, the majority of the values have a transaction amount that is still quite low. Looking at the x axis in terms of hours, we will now limit the y axis to an arbitrary value to see the dispersion of the lower transactions.
 
 ```{r}
-(ggplot(data = fraud_times) + geom_point( mapping = aes(mins ,  Amount )) + ylim(0,10))
-(ggplot(data = fraud_times) + geom_point( mapping = aes(mins ,  Amount )) + ylim(10, max(fraud_times$Amount) ))
+(graph <- ggplot(data = fraud_times) + geom_point( mapping = aes(mins ,  Amount )) + ylim(0,10))
+png('Figure 3.png')
+print(graph)
+dev.off()
+
+(graph <- ggplot(data = fraud_times) + geom_point( mapping = aes(mins ,  Amount )) + ylim(10, max(fraud_times$Amount) ))
+png('Figure 3.1.png')
+print(graph)
+dev.off()
 (ggplot(data = fraud_times) + geom_point( mapping = aes(mins ,  Amount )) + coord_cartesian(ylim = c(10, 250))
  )
 ```
@@ -94,6 +119,8 @@ Again, even when the time data is change to minutes, hours and days, the majorit
 Having limited the maximum transaction amount to $10 in the first plot, it is evident that a large proportion of the transactions are less than $5. In the second plot the author look at all the transactions greater than $10 which shows us a large proportion of the data points falling between $10 and $250. In the third plot the author "zooms" in on the values that fall between $10 and $250. Unfortunately there appears to be no direct correlation between the time and the amount of the transaction. This is clarified when we look at the correlation coefficient between time in minutes and the transaction amount.
 
 ```{r}
+?cor
+
 cor(fraud_times$mins, fraud_times$Amount)
 ```
 
@@ -196,9 +223,43 @@ methods('predict')
 
 ```{r}
 ?train
-?trainControl
-training_control <- trainControl(method ='repeatedcv', repeats = 10 )
-knn_model <- train(form = as.matrix(XTrain[31]) ~ ., data = as.matrix(XTrain[2:30]), trControl = training_control, method = 'knn')
+?Sys.time
+#?trainControl
+
+start_time <- Sys.time()
+
+training_control <- trainControl(method ='repeatedcv', repeats = 2)
+
+knn_model <- train(as.matrix(XTrain[2:30]), as.matrix(XTrain[31]), trControl = training_control, method = 'knn')
+
+end_time <- Sys.time()
+
+total_execution <- end_time - start_time
+
+cat('The total time to train the model was: ', total_execution)
+```
+
+Using the caret package for KNN is considerably faster that R's base KNN class. This may be due to 10 fold cross-validation which splits the training sample into 10 samples. One of these samples is then used as a test set. Therefore 90% of the data is used for training. This process is repeated twice.
+
+```{r}
+knn_model
+```
+
+Having printed the model summary we can see that the training found K = 7 as the optimum setting.
+
+```{r}
+predicted_classes <- predict(knn_model, newdata = as.matrix(XTest[2:30]))
+
+(results <- confusionMatrix(predicted_classes, as.matrix(XTest[31])  ))
+```
+
+As you can see from the summary the model accuracy with the test set is approximately 99.5% which is quite impressive.
+
+```{r}
+
+```
+
+```{r}
 
 ```
 
