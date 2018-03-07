@@ -217,11 +217,6 @@ cat('The total time to train the model and predict test classes was: ', total_ex
 The CrossTable function gives a description of the predictions but does not actually give an accuracy score for the model. This has to be calculated manually unfortunately. In this case the accuracy score of the model is approximately 99.6%. The accuracy is calculated by adding the total number of correct predictions for valid transactions with the total number of correct predictions for fraudulent transactions and then dividing that by the total number of observations. Note this accurracy is achieved without including the Time column.
 
 ```{r}
-?predict
-methods('predict')
-```
-
-```{r}
 ?train
 ?Sys.time
 #?trainControl
@@ -248,19 +243,26 @@ knn_model
 Having printed the model summary we can see that the training found K = 7 as the optimum setting.
 
 ```{r}
-predicted_classes <- predict(knn_model, newdata = as.matrix(XTest[2:30]))
+predicted_classes <- predict(knn_model, newdata = as.matrix(XTest[2:30])) # predict classes for the test observations
 
 (results <- confusionMatrix(predicted_classes, as.matrix(XTest[31])  ))
 ```
 
-As you can see from the summary the model accuracy with the test set is approximately 99.5% which is quite impressive.
+As you can see from the summary the model accuracy with the test set is approximately 99.6% which is quite impressive.
+
+Sensitivity: ability to detect true positive rate
+Specificity: ability to detect true negative rate.
+
+As you can see from the summary, the specificity is only 80%, meaning only 80% of the true fraudulent transactions were predicted as being fraudulent. This may be due to the lack of fraudulent transactions in the samples. Alternatively 99.9% of the non-fraudulent transactions were correctly classified as being non-fraudulent. In this case where we are trying to correctly identify fraudulent transactions it would be better to have a higher specificity. A lower sensitivity would still be quite reasonable.
+
+It would be more reasonable for a financial institution to missclassify non-fraudulent transactions as fraudulent compared to missclassifying fraudulent transactions as non-fraudulent.
 
 ```{r}
-
+?glm
 ```
 
 ```{r}
-
+?CrossTable
 ```
 
 ```{r}
