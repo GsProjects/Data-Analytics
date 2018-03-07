@@ -202,6 +202,7 @@ library(gmodels)
 library(class)
 
 start_time <- Sys.time()
+set.seed(4)
 model <- knn(as.matrix(XTrain[2:30]),test = as.matrix(XTest[2:30]),
              cl = as.matrix(XTrain[31]) , k=5, prob = TRUE)
 end_time <- Sys.time()
@@ -225,6 +226,7 @@ start_time <- Sys.time()
 
 training_control <- trainControl(method ='repeatedcv', repeats = 2)
 
+set.seed(5)
 knn_model <- train(as.matrix(XTrain[2:30]), as.matrix(XTrain[31]), trControl = training_control, method = 'knn')
 
 end_time <- Sys.time()
@@ -240,7 +242,7 @@ Using the caret package for KNN is considerably faster that R's base KNN class. 
 knn_model
 ```
 
-Having printed the model summary we can see that the training found K = 7 as the optimum setting.
+Having printed the model summary we can see that the training found K = 9 as the optimum setting.
 
 ```{r}
 predicted_classes <- predict(knn_model, newdata = as.matrix(XTest[2:30])) # predict classes for the test observations
@@ -262,7 +264,7 @@ It would be more reasonable for a financial institution to missclassify non-frau
 ```
 
 ```{r}
-?CrossTable
+?caret::confusionMatrix
 ```
 
 ```{r}
