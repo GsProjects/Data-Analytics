@@ -260,14 +260,47 @@ As you can see from the summary, the specificity is only 80%, meaning only 80% o
 It would be more reasonable for a financial institution to missclassify non-fraudulent transactions as fraudulent compared to missclassifying fraudulent transactions as non-fraudulent.
 
 ```{r}
+
+```
+
+Logistic Regression.
+
+```{r}
 ?glm
+
+start_time <- Sys.time()
+
+if(length(XTrain) == 31)
+  {
+    XTrain<- XTrain[2:31]
+  }
+
+logistic_model <- glm(Class ~ ., data = XTrain, family = binomial(link = 'logit'))
+
+end_time <- Sys.time()
+
+total_execution <- end_time - start_time
+
+cat('\nThe total time to train the model was: ', total_execution)
+
+summary(logistic_model)
 ```
 
-```{r}
-?caret::confusionMatrix
-```
+As you can see from the p-values associated with the coefficients, some predictors are more statistically significant than others. Despite this, the trained model will now be validated against the test set. Following this the parameters used in the training model will be reduced to only included the variables that were statistically significant. Generally anything with a p-value of .05 or less is considered statistically significant which is the criteria that will be used to improve the model.
 
 ```{r}
+?predict
+?glm
+
+logistic_predicted <- predict(logistic_model, type = 'response', newdata = XTest[2:30] ) # type = response means the output is returned as P(Y =1 | X)
+
+
+# need to convert probabilities to 0 or 1 using a threshold
+
+logistic_predicted[logistic_predicted > .5] = 1
+logistic_predicted[logistic_predicted < .5] = 0
+
+(confusionMatrix(logistic_predicted, as.matrix(XTest[31]) ))
 
 ```
 
