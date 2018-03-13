@@ -196,53 +196,65 @@ XTest  <- normalised[-train_index,]
 The K Nearest Neighbor classifier is one of the simplest classification algorithms to understand. In essence the algorithm works by storing the training set and then finding whats the closest training observation to the incoming test observation. The test observation is then categorised as the class of the training observation. This is the case if k = 1. If K = 5 for example, the algorithm works by locating 5 closest training observations to the test observation and assigns it the class that occurs most in the 5 neighbours.
 
 ```{r}
-#install.packages('class')
-#install.packages('gmodels')
-library(gmodels)
-library(class)
+basic_knn <- function(XTrain, XTest)
+{
+  #install.packages('class')
+  #install.packages('gmodels')
+  library(gmodels)
+  library(class)
+  
+  set.seed(4)
+  model <- knn(as.matrix(XTrain[2:30]),test = as.matrix(XTest[2:30]),
+               cl = as.matrix(XTrain[31]) , k=5, prob = TRUE)
+  #model stores the predicted output for each data point as well as a proportion of votes for the winning class.
+  
+  return(model)
+}
 
 start_time <- Sys.time()
-set.seed(4)
-model <- knn(as.matrix(XTrain[2:30]),test = as.matrix(XTest[2:30]),
-             cl = as.matrix(XTrain[31]) , k=5, prob = TRUE)
+
+model <- basic_knn(XTrain, XTest)
+
 end_time <- Sys.time()
-#model stores the predicted output for each data point as well as a proportion of votes for the winning class.
 
 total_execution <- end_time - start_time
 
 CrossTable(as.matrix(XTest[31]), y = model )
+  
+cat('The total time to train the basic knn model and predict test classes was: ', total_execution)
 
-cat('The total time to train the model and predict test classes was: ', total_execution)
 ```
 
 The CrossTable function gives a description of the predictions but does not actually give an accuracy score for the model. This has to be calculated manually unfortunately. In this case the accuracy score of the model is approximately 99.6%. The accuracy is calculated by adding the total number of correct predictions for valid transactions with the total number of correct predictions for fraudulent transactions and then dividing that by the total number of observations. Note this accurracy is achieved without including the Time column.
 
 ```{r}
 ?train
-?Sys.time
-#?trainControl
+knn_cv <- function(XTrain, XTest)
+{
+  training_control <- trainControl(method ='repeatedcv', repeats = 5)
+  
+  set.seed(5)
+  knn_model <- train(as.matrix(XTrain[2:30]), as.matrix(XTrain[31]), trControl = training_control, method = 'knn')
+  
+  return(knn_model)
+}
+```
 
+Using the caret package for KNN is considerably faster that R's base KNN class. This may be due to 10 fold cross-validation which splits the training sample into 10 samples. One of these samples is then used as a test set. Therefore 90% of the data is used for training. This process is repeated five times.
+
+```{r}
 start_time <- Sys.time()
 
-training_control <- trainControl(method ='repeatedcv', repeats = 2)
-
-set.seed(5)
-knn_model <- train(as.matrix(XTrain[2:30]), as.matrix(XTrain[31]), trControl = training_control, method = 'knn')
+(knn_model <- knn_cv(XTrain, XTest))
 
 end_time <- Sys.time()
 
 total_execution <- end_time - start_time
-
-cat('The total time to train the model was: ', total_execution)
+  
+cat('The total time to train the cross validated knn model and predict test classes was: ', total_execution,'\n')
 ```
 
-Using the caret package for KNN is considerably faster that R's base KNN class. This may be due to 10 fold cross-validation which splits the training sample into 10 samples. One of these samples is then used as a test set. Therefore 90% of the data is used for training. This process is repeated twice.
-
-```{r}
-knn_model
-```
-
-Having printed the model summary we can see that the training found K = 9 as the optimum setting.
+Having printed the model summary we can see that the training found K = 5 as the optimum setting.
 
 ```{r}
 predicted_classes <- predict(knn_model, newdata = as.matrix(XTest[2:30])) # predict classes for the test observations
@@ -268,39 +280,87 @@ Logistic Regression.
 ```{r}
 ?glm
 
-start_time <- Sys.time()
+logistic <- function(XTrain, XTest)
+{
+  start_time <- Sys.time()
+  
+  if(length(XTrain) == 31)
+    {
+      XTrain<- XTrain[2:31]
+    }
+  
+  logistic_model <- glm(Class ~ ., data = XTrain, family = binomial(link = 'logit'))
+  
+  end_time <- Sys.time()
+  
+  total_execution <- end_time - start_time
+  
+  cat('\nThe total time to train the model was: ', total_execution)
+  
+  summary(logistic_model)
+  
+  return(logistic_model)
 
-if(length(XTrain) == 31)
-  {
-    XTrain<- XTrain[2:31]
-  }
+}
 
-logistic_model <- glm(Class ~ ., data = XTrain, family = binomial(link = 'logit'))
+(logistic_model <- logistic(XTrain, XTest))
 
-end_time <- Sys.time()
+logistic_predicted <- predict(logistic_model,type = 'response', newdata = XTest[2:30] ) # if you use the parameter type = response, it means the output is returned as P(Y =1 | X) so you need to convert to probabilites to 0 or 1 using a threshold like below
+  
+  
+  # need to convert probabilities to 0 or 1 using a threshold
+logistic_predicted[logistic_predicted > .5] = 1
+logistic_predicted[logistic_predicted < .5] = 0
+  
+(confusionMatrix(logistic_predicted, as.matrix(XTest[31]) ))
 
-total_execution <- end_time - start_time
 
-cat('\nThe total time to train the model was: ', total_execution)
-
-summary(logistic_model)
 ```
 
 As you can see from the p-values associated with the coefficients, some predictors are more statistically significant than others. Despite this, the trained model will now be validated against the test set. Following this the parameters used in the training model will be reduced to only included the variables that were statistically significant. Generally anything with a p-value of .05 or less is considered statistically significant which is the criteria that will be used to improve the model.
 
+With one run of logistic regression on the training data followed by the model being tested the accuracy of the predictions is 99.64%
+
 ```{r}
-?predict
-?glm
-
-logistic_predicted <- predict(logistic_model, type = 'response', newdata = XTest[2:30] ) # type = response means the output is returned as P(Y =1 | X)
 
 
-# need to convert probabilities to 0 or 1 using a threshold
+```
 
-logistic_predicted[logistic_predicted > .5] = 1
-logistic_predicted[logistic_predicted < .5] = 0
 
-(confusionMatrix(logistic_predicted, as.matrix(XTest[31]) ))
+
+```{r}
+logistic_cv <- function(XTrain, XTest)
+{
+  library(gmodels)
+  library(class)
+  
+  training_control <- trainControl(method ='repeatedcv', repeats = 5)
+  
+  set.seed(5)
+  log_model <- train(Class ~ ., data = XTrain, trControl = training_control, method = 'glm', family = binomial(link = 'logit') )
+  
+  return(log_model)
+}
+
+(log_model <- logistic_cv(XTrain,XTest) )
+
+```
+
+Using repeated cross validation with 5 repeats and 10 folds per repeat the overall model accuracy is 99.621%. This model now needs to be validated against XTest.
+
+```{r}
+logistic_predicted <- predict(log_model, newdata = as.matrix(XTest[1:30]) ) # type = response means the output is returned as P(Y =1 | X)
+
+#logistic_predicted[logistic_predicted > .5] = 1
+#logistic_predicted[logistic_predicted < .5] = 0
+
+
+(confusionMatrix(as.matrix(logistic_predicted), as.matrix(XTest[31]) ))
+```
+
+As you can see the accuracy using cross validation is 99.64% which results in no change from the original dataset. This may be due to the level of accuracy in the existing model which is already extremely high. The closer the model accuracy is to 100% the harder it is to improve the model.
+
+```{r}
 
 ```
 
