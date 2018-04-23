@@ -3,9 +3,12 @@ title: "R Notebook: Credit Card Fraud Classification"
 output: html_notebook
 ---
 
+
 ```{r}
 #install.packages('tidyverse')
 library(tidyverse)
+library(lubridate)
+library(randomForest)
 
 raw_data <- read_csv('creditcard.csv')
 View(raw_data)
@@ -172,11 +175,7 @@ normalise_data <- function(temporary_data)
     }
   return(temporary_data)
 }
-start_time <- Sys.time()
-normalised <- normalise_data(sample_data)
-end_time <- Sys.time()
-total_execution <- end_time - start_time
-cat('The total time to normalise the data was: ', total_execution)
+system.time( {normalised <- normalise_data(sample_data) })
 normalised
 ```
 
@@ -187,10 +186,15 @@ Although only 10% of the dataset is being used it takes approximately 3 minutes 
 library(caret)
 
 set.seed(2)
-train_index <- createDataPartition(normalised$Class, times=1, p=.75, list = FALSE)
+train_index <- createDataPartition(normalised$Class, times=1, p=.5, list = FALSE)
 XTrain <- normalised[ train_index,]
 
-XTest  <- normalised[-train_index,]
+TotalTest  <- normalised[-train_index,]
+test_index <- createDataPartition(TotalTest$Class, times=1, p=.5, list = FALSE)
+XTest <- normalised[ test_index,]
+
+independent_Test  <- normalised[-test_index,]
+
 ```
 
 The K Nearest Neighbor classifier is one of the simplest classification algorithms to understand. In essence the algorithm works by storing the training set and then finding whats the closest training observation to the incoming test observation. The test observation is then categorised as the class of the training observation. This is the case if k = 1. If K = 5 for example, the algorithm works by locating 5 closest training observations to the test observation and assigns it the class that occurs most in the 5 neighbours.
@@ -204,24 +208,17 @@ basic_knn <- function(XTrain, XTest)
   library(class)
   
   set.seed(4)
-  model <- knn(as.matrix(XTrain[2:30]),test = as.matrix(XTest[2:30]),
-               cl = as.matrix(XTrain[31]) , k=5, prob = TRUE)
+  model <- train(as.matrix(XTrain[2:30]), as.matrix(XTrain[31]), method = 'knn',)
   #model stores the predicted output for each data point as well as a proportion of votes for the winning class.
   
   return(model)
 }
 
-start_time <- Sys.time()
+system.time( {model <- basic_knn(XTrain, XTest) })
 
-model <- basic_knn(XTrain, XTest)
+predicted_classes <- predict(model, newdata = as.matrix(XTest[2:30]))
 
-end_time <- Sys.time()
-
-total_execution <- end_time - start_time
-
-CrossTable(as.matrix(XTest[31]), y = model )
-  
-cat('The total time to train the basic knn model and predict test classes was: ', total_execution)
+(results <- confusionMatrix(as.matrix(XTest[31]), predicted_classes,  positive='1'  ))
 
 ```
 
@@ -229,7 +226,7 @@ The CrossTable function gives a description of the predictions but does not actu
 
 ```{r}
 ?train
-knn_cv <- function(XTrain, XTest)
+knn_cv <- function(XTrain)
 {
   training_control <- trainControl(method ='repeatedcv', repeats = 5)
   
@@ -243,23 +240,21 @@ knn_cv <- function(XTrain, XTest)
 Using the caret package for KNN is considerably faster that R's base KNN class. This may be due to 10 fold cross-validation which splits the training sample into 10 samples. One of these samples is then used as a test set. Therefore 90% of the data is used for training. This process is repeated five times.
 
 ```{r}
-start_time <- Sys.time()
 
-(knn_model <- knn_cv(XTrain, XTest))
+system.time( {knn_model <- knn_cv(XTrain) })
 
-end_time <- Sys.time()
-
-total_execution <- end_time - start_time
-  
-cat('The total time to train the cross validated knn model and predict test classes was: ', total_execution,'\n')
 ```
 
 Having printed the model summary we can see that the training found K = 5 as the optimum setting.
 
 ```{r}
 predicted_classes <- predict(knn_model, newdata = as.matrix(XTest[2:30])) # predict classes for the test observations
+#predicted_classes <- list(predicted_classes)
 
-(results <- confusionMatrix(predicted_classes, as.matrix(XTest[31])  ))
+#typeof(predicted_classes)
+#typeof(XTest[31])
+
+(results <- confusionMatrix(as.matrix(XTest[31]), predicted_classes,  positive='1'  ))
 ```
 
 As you can see from the summary the model accuracy with the test set is approximately 99.6% which is quite impressive.
@@ -280,7 +275,7 @@ Logistic Regression.
 ```{r}
 ?glm
 
-logistic <- function(XTrain, XTest)
+logistic <- function(XTrain)
 {
   start_time <- Sys.time()
   
@@ -289,7 +284,8 @@ logistic <- function(XTrain, XTest)
       XTrain<- XTrain[2:31]
     }
   
-  logistic_model <- glm(Class ~ ., data = XTrain, family = binomial(link = 'logit'))
+  #logistic_model <- glm(Class ~ ., data = XTrain, family = binomial(link = 'logit'))
+  logistic_model <- train(Class ~ ., data = XTrain, method = 'glm', family = binomial(link = 'logit') )
   
   end_time <- Sys.time()
   
@@ -303,16 +299,16 @@ logistic <- function(XTrain, XTest)
 
 }
 
-(logistic_model <- logistic(XTrain, XTest))
+system.time( {logistic_model <- logistic(XTrain)})
 
-logistic_predicted <- predict(logistic_model,type = 'response', newdata = XTest[2:30] ) # if you use the parameter type = response, it means the output is returned as P(Y =1 | X) so you need to convert to probabilites to 0 or 1 using a threshold like below
+logistic_predicted <- predict(logistic_model, newdata = XTest[2:30] ) # if you use the parameter type = response, it means the output is returned as P(Y =1 | X) so you need to convert to probabilites to 0 or 1 using a threshold like below
   
   
   # need to convert probabilities to 0 or 1 using a threshold
-logistic_predicted[logistic_predicted > .5] = 1
-logistic_predicted[logistic_predicted < .5] = 0
+#logistic_predicted[logistic_predicted > .5] = 1
+#logistic_predicted[logistic_predicted < .5] = 0
   
-(confusionMatrix(logistic_predicted, as.matrix(XTest[31]) ))
+(confusionMatrix(as.matrix(XTest[31]), logistic_predicted, positive='1' ))
 
 
 ```
@@ -321,15 +317,10 @@ As you can see from the p-values associated with the coefficients, some predicto
 
 With one run of logistic regression on the training data followed by the model being tested the accuracy of the predictions is 99.64%
 
-```{r}
-
-
-```
-
 
 
 ```{r}
-logistic_cv <- function(XTrain, XTest)
+logistic_cv <- function(XTrain)
 {
   library(gmodels)
   library(class)
@@ -342,11 +333,11 @@ logistic_cv <- function(XTrain, XTest)
   return(log_model)
 }
 
-(log_model <- logistic_cv(XTrain,XTest) )
+system.time( {log_model <- logistic_cv(XTrain) })
 
 ```
 
-Using repeated cross validation with 5 repeats and 10 folds per repeat the overall model accuracy is 99.621%. This model now needs to be validated against XTest.
+Using repeated cross validation with 5 repeats and 10 folds per repeat. This model now needs to be validated against XTest.
 
 ```{r}
 logistic_predicted <- predict(log_model, newdata = as.matrix(XTest[1:30]) ) # type = response means the output is returned as P(Y =1 | X)
@@ -355,12 +346,92 @@ logistic_predicted <- predict(log_model, newdata = as.matrix(XTest[1:30]) ) # ty
 #logistic_predicted[logistic_predicted < .5] = 0
 
 
-(confusionMatrix(as.matrix(logistic_predicted), as.matrix(XTest[31]) ))
+(confusionMatrix(as.matrix(XTest[31]), as.matrix(logistic_predicted) , positive='1' ))
 ```
 
 As you can see the accuracy using cross validation is 99.64% which results in no change from the original dataset. This may be due to the level of accuracy in the existing model which is already extremely high. The closer the model accuracy is to 100% the harder it is to improve the model.
 
 ```{r}
+?randomForest
+basic_RF <- function(XTrain)
+{
+  model <- randomForest(Class ~ ., data = XTrain[2:31], ntree=100 ) 
+  return(model)
+}
 
+system.time( {RF <- basic_RF(XTrain)})
+
+
+```
+
+
+
+```{r}
+?predict
+predictions = predict(RF, newdata = XTest[2:30])
+confusionMatrix(as.matrix(XTest[31]), as.matrix(predictions), positive='1' )
+
+
+
+```
+
+
+
+```{r}
+RF_cv <- function(Xtrain)
+{
+   training_control <- trainControl(method ='repeatedcv', repeats = 5)
+  
+  set.seed(5)
+  rf_model <- train(Class ~ ., data = XTrain[2:31], trControl = training_control, method = 'rf', ntree = 10 )
+  
+  return(rf_model)
+}
+
+system.time( {rf_model <- RF_cv(Xtrain)})
+
+
+rf_predicted <- predict(rf_model, newdata = as.matrix(XTest[2:30]) ) 
+
+
+(confusionMatrix(as.matrix(XTest[31]), as.matrix(rf_predicted) , positive='1'  ))
+```
+
+**Independent Test Set**
+
+```{r}
+CrossTable(as.matrix(independent_Test[31]), y = model)
+```
+
+```{r}
+logistic_predicted <- predict(logistic_model, newdata = independent_Test[2:30] ) # if you use the parameter type = response, it means the output is returned as P(Y =1 | X) so you need to convert to probabilites to 0 or 1 using a threshold like below
+  
+(confusionMatrix(logistic_predicted, as.matrix(independent_Test[31]), positive='1' ))
+```
+
+```{r}
+predictions = predict(RF, newdata = independent_Test[2:30])
+confusionMatrix(as.matrix(predictions), as.matrix(independent_Test[31]), positive='1' )
+```
+
+**Cross Validated Models**
+
+```{r}
+predicted_classes <- predict(knn_model, newdata = as.matrix(independent_Test[2:30])) # predict classes for the test observations
+
+(results <- confusionMatrix(predicted_classes, as.matrix(independent_Test[31]) , positive='1'  ))
+```
+
+```{r}
+logistic_predicted <- predict(log_model, newdata = as.matrix(independent_Test[1:30]) ) # type = response means the output is returned as P(Y =1 | X)
+
+(confusionMatrix(as.matrix(logistic_predicted), as.matrix(independent_Test[31]) , positive='1' ))
+```
+
+```{r}
+rf_predicted <- predict(rf_model, newdata = as.matrix(independent_Test[2:30]) ) 
+
+
+(confusionMatrix(as.matrix(rf_predicted), as.matrix(independent_Test[31]) , positive='1'  ))
 ```
 
