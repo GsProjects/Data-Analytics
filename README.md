@@ -1,5 +1,5 @@
 # Data-Analytics
-Data Analytics Module Contents
+Data Analytics: Credit Card Fraud Classification
 
 The purpose of this repo is to store the contents of my project based on credit card fraud classification as part of my masters curriculum.
 The main issue with this dataset, which was sourced from kaggle, was it was highly unbalanced. There are approximately 280,000 rows of valid transactions and approximately 492 rows of fraudulent transactions.
