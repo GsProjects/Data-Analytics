@@ -1,6 +1,8 @@
 ---
-title: "R Notebook: Credit Card Fraud Classification"
-output: html_notebook
+title: 'R Notebook: Credit Card Fraud Classification'
+output:
+  pdf_document: default
+  html_notebook: default
 ---
 
 
@@ -224,7 +226,7 @@ predicted_classes <- predict(model, newdata = as.matrix(XTest[2:30]))
 
 ```
 
-The CrossTable function gives a description of the predictions but does not actually give an accuracy score for the model. This has to be calculated manually unfortunately. In this case the accuracy score of the model is approximately 99.6%. The accuracy is calculated by adding the total number of correct predictions for valid transactions with the total number of correct predictions for fraudulent transactions and then dividing that by the total number of observations. Note this accurracy is achieved without including the Time column.
+The CrossTable function gives a description of the predictions but does not actually give an accuracy score for the model. This has to be calculated manually unfortunately. In this case the accuracy score of the model is approximately 99.96%. The accuracy is calculated by adding the total number of correct predictions for valid transactions with the total number of correct predictions for fraudulent transactions and then dividing that by the total number of observations. Note this accurracy is achieved without including the Time column.
 
 ```{r}
 ?train
@@ -244,6 +246,7 @@ Using the caret package for KNN is considerably faster that R's base KNN class. 
 ```{r}
 
 system.time( {knn_model <- knn_cv(XTrain) })
+(knn_model)
 
 ```
 
@@ -260,7 +263,6 @@ As you can see from the summary the model accuracy with the test set is approxim
 Sensitivity: ability to detect true positive rate
 Specificity: ability to detect true negative rate.
 
-As you can see from the summary, the specificity is only 80%, meaning only 80% of the true fraudulent transactions were predicted as being fraudulent. This may be due to the lack of fraudulent transactions in the samples. Alternatively 99.9% of the non-fraudulent transactions were correctly classified as being non-fraudulent. In this case where we are trying to correctly identify fraudulent transactions it would be better to have a higher specificity. A lower sensitivity would still be quite reasonable.
 
 It would be more reasonable for a financial institution to missclassify non-fraudulent transactions as fraudulent compared to missclassifying fraudulent transactions as non-fraudulent.
 
@@ -309,7 +311,7 @@ logistic_predicted <- predict(logistic_model, newdata = XTest[2:30] ) # if you u
 
 As you can see from the p-values associated with the coefficients, some predictors are more statistically significant than others. Despite this, the trained model will now be validated against the test set. Following this the parameters used in the training model will be reduced to only included the variables that were statistically significant. Generally anything with a p-value of .05 or less is considered statistically significant which is the criteria that will be used to improve the model.
 
-With one run of logistic regression on the training data followed by the model being tested the accuracy of the predictions is 99.64%
+With one run of logistic regression on the training data followed by the model being tested the accuracy of the predictions is 99.92%
 
 
 
@@ -343,7 +345,7 @@ logistic_predicted <- predict(log_model, newdata = as.matrix(XTest[1:30]) ) # ty
 (confusionMatrix(as.matrix(XTest[31]), as.matrix(logistic_predicted) , positive='1' ))
 ```
 
-As you can see the accuracy using cross validation is 99.64% which results in no change from the original dataset. This may be due to the level of accuracy in the existing model which is already extremely high. The closer the model accuracy is to 100% the harder it is to improve the model.
+As you can see the accuracy using cross validation is 99.92% which results in no change from the original dataset. This may be due to the level of accuracy in the existing model which is already extremely high. The closer the model accuracy is to 100% the harder it is to improve the model.
 
 ```{r}
 ?randomForest
