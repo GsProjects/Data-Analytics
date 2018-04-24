@@ -190,6 +190,8 @@ train_index <- createDataPartition(normalised$Class, times=1, p=.5, list = FALSE
 XTrain <- normalised[ train_index,]
 
 TotalTest  <- normalised[-train_index,]
+
+set.seed(3)
 test_index <- createDataPartition(TotalTest$Class, times=1, p=.5, list = FALSE)
 XTest <- normalised[ test_index,]
 
@@ -249,10 +251,6 @@ Having printed the model summary we can see that the training found K = 5 as the
 
 ```{r}
 predicted_classes <- predict(knn_model, newdata = as.matrix(XTest[2:30])) # predict classes for the test observations
-#predicted_classes <- list(predicted_classes)
-
-#typeof(predicted_classes)
-#typeof(XTest[31])
 
 (results <- confusionMatrix(as.matrix(XTest[31]), predicted_classes,  positive='1'  ))
 ```
@@ -302,11 +300,7 @@ logistic <- function(XTrain)
 system.time( {logistic_model <- logistic(XTrain)})
 
 logistic_predicted <- predict(logistic_model, newdata = XTest[2:30] ) # if you use the parameter type = response, it means the output is returned as P(Y =1 | X) so you need to convert to probabilites to 0 or 1 using a threshold like below
-  
-  
-  # need to convert probabilities to 0 or 1 using a threshold
-#logistic_predicted[logistic_predicted > .5] = 1
-#logistic_predicted[logistic_predicted < .5] = 0
+
   
 (confusionMatrix(as.matrix(XTest[31]), logistic_predicted, positive='1' ))
 
@@ -400,7 +394,9 @@ rf_predicted <- predict(rf_model, newdata = as.matrix(XTest[2:30]) )
 **Independent Test Set**
 
 ```{r}
-CrossTable(as.matrix(independent_Test[31]), y = model)
+predicted_classes <- predict(model, newdata = as.matrix(independent_Test[2:30]))
+
+confusionMatrix(as.matrix(independent_Test[31]), as.matrix(predicted_classes), positive='1')
 ```
 
 ```{r}
